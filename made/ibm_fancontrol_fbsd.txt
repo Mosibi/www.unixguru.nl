@@ -1,0 +1,210 @@
+#!/usr/bin/perl
+
+############### WARNING ###############
+# This script takes control of the fan
+# in your laptop. It works perfectly on
+# my laptop, but could ruin your laptop!
+############### WARNING ###############
+
+use strict;
+use warnings;
+use diagnostics;
+use Proc::Daemon;
+
+my %curr_temps;
+my $lowest_cpu_temp = 52;
+my $highest_cpu_temp = 72;
+my $cpu_freq_down_time;
+#
+my $daemon_pidfile = "/tmp/ibm_fancontrol_fbsd.pid";
+my $daemonize = "1";
+my $daemondebug = "1";
+#
+# Set powerd_level to 0 if you do not want to run powerd
+my $powerd_level = 69;
+my $powerd_pidfile = "/var/run/powerd.pid";
+
+my %sensors = (	"1", "CPU",
+		"2", "Mini PCI Module",
+		"3", "HDD",
+		"4", "GPU",
+		"5", "Built-in battery",
+		"6", "UltraBay battery",
+		"7", "Built-in battery",
+		"8", "UltraBay battery");
+
+my %cpu_temp_fan_levels = ( "52", "1", "53", "1", "54", "1", "55", "2", "56", "2", "57", "2", "58", "3", "59", "3", "60", "3", "61", "4", "62", "4", "63", "4", "64", "5", "65", "5", "66", "5", "67", "6", "68", "6", "69", "6", "70", "7", "71", "7", "72", "7"); 
+
+sub gettemps {
+	my @temps = split(" ", qx(/sbin/sysctl dev.acpi_ibm.0.thermal));
+	my $counter = 0;
+
+	foreach my $temp (@temps) {
+		if ($sensors{$counter}) {
+			$curr_temps{$counter} = $temp;
+#			print "T: $sensors{$counter} - $temp\n";
+		}
+
+		$counter++;
+	}
+}
+
+sub powerd_check {
+	if ( -f $powerd_pidfile ) {
+		open(FILE,"$powerd_pidfile") or die "can not open file $powerd_pidfile";
+		my $powerd_pid=<FILE>;
+		close(FILE);
+
+		my $pid_check = system("/bin/ps -p $powerd_pid >/dev/null");
+
+		if ( $pid_check == 0 ) {
+			return($powerd_pid);
+		} else {
+			return(0);
+		}
+	} else {
+		return(0);
+	}
+}
+
+sub cpufreq {
+	my $action = shift;
+	my %freqlevels;
+	my $freqlevel;
+
+	my @cpu_freq = split(" ", qx(/sbin/sysctl dev.cpu.0.freq));
+	my @cpu_freq_levels = split(" ", qx(/sbin/sysctl dev.cpu.0.freq_levels));
+
+	my $freq_nr = 0;
+
+	foreach my $freq_level (@cpu_freq_levels) {
+		my @freq = split("/", $freq_level);
+		next if ($freq[0] !~ m/^\d+/);
+
+		if ($freq[0] eq $cpu_freq[1]) {
+			$freqlevel = $freq_nr;
+		}
+
+		$freqlevels{$freq_nr} = $freq[0];
+		$freq_nr++;
+	}
+
+	if ($action eq "higher") {
+		if ($freqlevel ne 0) {
+			$freqlevel--;
+		}
+
+		return($freqlevels{$freqlevel});
+	} else {
+		$freqlevel++;
+		return($freqlevels{$freqlevel});
+	}
+}
+
+### MAIN PROGRAM ###
+
+if ( $daemonize == "1" ) {
+	print "$0: Switching to daemon mode\n";
+	Proc::Daemon::Init;
+
+	if ( $daemondebug == 1 ) {
+		my $logfile = "/tmp/debug.log";
+		open(STDOUT, ">>$logfile") or die "Failed to re-open STDOUT to $logfile";
+		open(STDERR, ">&STDOUT") or die "Failed to re-open STDERR to STDOUT";
+	}
+
+	my $pid = $$;
+
+	if($pid) {
+		open PIDFILE, ">$daemon_pidfile" or die "$0: can't write to $daemon_pidfile: $!\n";
+		print PIDFILE "$pid\n";
+		close(PIDFILE);
+	}
+
+	while(1) {
+		BeDaemon();
+	}
+} else {
+	print "$0: Running in foreground (debug) mode\n";
+	BeDaemon();
+}
+
+sub BeDaemon {
+	while(1) {
+		gettemps();
+	
+		for my $nr (sort keys %curr_temps) {
+			if ( $nr == 1 ) {
+				print "CPU: $nr: $curr_temps{$nr} - $sensors{$nr}\n";
+		
+				if ( $curr_temps{$nr} <= $powerd_level ) {
+					if ( $powerd_level != 0 ) {
+						# powerd is allowed at this temp
+						# Check if it is allready running else start it 
+						my $powerd_pid = powerd_check();
+
+						if ( $powerd_pid == 0 ) {
+							print "Starting powerd\n";
+							system("/usr/sbin/powerd -a adaptive -b adaptive -n adaptive");
+						}
+					}
+				}
+				
+				if ( $curr_temps{$nr} < $lowest_cpu_temp ) {
+					# Stop the fan
+					system("/sbin/sysctl dev.acpi_ibm.0.fan=0");
+					system("/sbin/sysctl dev.acpi_ibm.0.fan_level=0");
+				} elsif ( $curr_temps{$nr} > $highest_cpu_temp ) {
+					# Hot
+					# Run fan at the highest level and slow down the cpu!!
+					system("/sbin/sysctl dev.acpi_ibm.0.fan=0");
+					system("/sbin/sysctl dev.acpi_ibm.0.fan_level=7");
+
+					# We have to stop powerd at this level
+					my $powerd_pid = powerd_check();
+
+					if ( $powerd_pid > 0 ) {
+						print "Killing powerd\n";
+						system("kill $powerd_pid");
+					}
+
+					my $new_cpu_freq = cpufreq("lower");
+					system("/sbin/sysctl dev.cpu.0.freq=$new_cpu_freq");
+					sleep(10);
+					$cpu_freq_down_time = time();
+				} else {
+					# We need to change the speed of the fan.
+		
+					# If it's higher than the current value, than
+					# we will not change it to a lower value the next
+					# 30 seconds
+					my @dummy_one = split(" ", qx(/sbin/sysctl dev.acpi_ibm.0.fan_level));
+					my $fan_level = $dummy_one[1];
+		
+					if ( $fan_level < $cpu_temp_fan_levels{$curr_temps{$nr}} ) {
+						system("/sbin/sysctl dev.acpi_ibm.0.fan=0");
+						system("/sbin/sysctl dev.acpi_ibm.0.fan_level=$cpu_temp_fan_levels{$curr_temps{$nr}}");
+###						sleep(30);
+					} elsif ( $fan_level > $cpu_temp_fan_levels{$curr_temps{$nr}} ) {
+						system("/sbin/sysctl dev.acpi_ibm.0.fan=0");
+						system("/sbin/sysctl dev.acpi_ibm.0.fan_level=$cpu_temp_fan_levels{$curr_temps{$nr}}");
+		
+						my $curr_time = time();
+						$cpu_freq_down_time = 0 if (! $cpu_freq_down_time);
+		
+						my $time_diff = ($curr_time - $cpu_freq_down_time);
+		
+						if ($time_diff > 60 ) {
+							my $new_cpu_freq = cpufreq("higher");
+							system("/sbin/sysctl dev.cpu.0.freq=$new_cpu_freq");
+							sleep(10);
+						}
+					}
+				}
+			}
+		}
+	
+		print "===================================================================================\n";
+		sleep(1);
+	}
+}

@@ -1,0 +1,134 @@
+#!/usr/bin/perl
+
+# Math program for kids
+# Written by Richard Arends (richard@unixguru.nl) for his
+# 6 year old son
+#
+# Version 0.1 16-01-2005
+#
+# The program knows 10 levels (nivos). A level stands for
+# the highest number we calculate with. So within level 1
+# the highest number will be 5 and within level 7 the
+# highest number will be 100
+#
+# It works with the operands + and - but is easily extended
+# with more.
+
+use strict;
+use warnings;
+use Text::FIGlet;
+
+my $font = Text::FIGlet->new(	-f => "doh",
+				-d => "/usr/local/share/figlet");
+
+my %nivos = ("1", "5", "2", "10", "3", "15", "4", "20", "5", "30", "6", "50", "7", "100", "8", "200", "9", "500", "10", "1000");
+my %operands = ("0", "+", "1", "-");
+my $curr_nivo = 1;
+
+my %niv_good;
+my %answer_hist;
+
+my $good = 0;
+my $wrong = 0;
+my $total = 0;
+
+while (1) {
+	system("clear");
+#	print "Nivo: $curr_nivo\n\n";
+	my $get_operand = (int(rand keys %operands));
+	my $operand = "$operands{$get_operand}";
+	my $numbers = GetNumber($curr_nivo);
+	my ($first, $second) = split(/:/, $numbers);
+	print "$first $operand $second\n";
+	print "Antwoord: ";
+	my $answer = <STDIN>;
+
+	my $sum;
+
+	if ( $operand eq "+" ) {
+		$sum = ($first + $second);
+	} elsif ( $operand eq "-" ) {
+		$sum = ($first - $second);
+	}
+
+	if ( $answer !~ m/^\d+$/ ) {
+		# input is not a number
+		system("clear");
+		print "\n\n\n\n\n\n\n\n\n\t\t\t\t\t\tTotaal\t\t: $total\n";
+		print "\t\t\t\t\t\tGoed\t\t: $good\n";
+		print "\t\t\t\t\t\tFout\t\t: $wrong\n";
+
+		for my $answer_nivos (sort keys %answer_hist) {
+			if ( ! defined $answer_hist{$answer_nivos}{"good"} ) {
+				$answer_hist{$answer_nivos}{"good"} = 0;
+			}
+			if ( ! defined $answer_hist{$answer_nivos}{"wrong"} ) {
+				$answer_hist{$answer_nivos}{"wrong"} = 0;
+			}
+
+			print "\n";
+			print "\t\t\t\t\t\tNivo $answer_nivos goed\t: $answer_hist{$answer_nivos}{good}\n";
+			print "\t\t\t\t\t\tNivo $answer_nivos fout\t: $answer_hist{$answer_nivos}{wrong}\n";
+		}
+
+		exit;
+	} else {
+		if ( $answer == $sum ) {
+			print $font->figify(-A=>"Goed")."\n";
+			$good++;
+
+			if ( ! defined $answer_hist{$curr_nivo}{"good"} ) {
+				$answer_hist{$curr_nivo}{"good"} = 0; 
+			}
+
+			$answer_hist{$curr_nivo}{"good"}++;
+			$niv_good{$curr_nivo}++;
+			sleep(2);
+			system("clear");
+		} else {
+			print $font->figify(-A=>"Fout")."\n";
+			$wrong++;
+
+			if ( ! defined $answer_hist{$curr_nivo}{"wrong"} ) {
+				$answer_hist{$curr_nivo}{"wrong"} = 0; 
+			}
+
+			$answer_hist{$curr_nivo}{"wrong"}++;
+			$niv_good{$curr_nivo}--;
+			print "\n\nHet juiste antwoord is: $sum\n";
+			sleep(5);
+			system("clear");
+		}
+
+		$total++;
+	}
+
+	if ( $niv_good{$curr_nivo} == 3 ) {
+		$curr_nivo++;
+		print $font->figify(-A=>"Nivo $curr_nivo")."\n";
+		sleep(2);
+		system("clear");
+	} elsif ( $niv_good{$curr_nivo} < 0 ) {
+		$niv_good{$curr_nivo} = 0;
+
+		if ( $curr_nivo > 1 ) {
+			$curr_nivo--;
+			$niv_good{$curr_nivo} = 0;
+			print $font->figify(-A=>"Nivo $curr_nivo")."\n";
+			sleep(2);
+			system("clear");
+		}
+	}
+}
+
+sub GetNumber {
+	my $input_nivo = shift;
+	my $first_nr = (int(rand $nivos{$input_nivo}));
+	my $second_nr = (int(rand $nivos{$input_nivo}));
+	
+	if ( $first_nr > $second_nr ) {
+		return "$first_nr:$second_nr";
+	} else {
+		return "$second_nr:$first_nr";
+	}
+}

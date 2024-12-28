@@ -1,0 +1,40 @@
+<HTML>
+
+<HEAD>
+<TITLE>http://www.unixguru.nl</TITLE>
+<META NAME="description" content="Unixguru">
+<META NAME="keywords" content>
+</HEAD>
+
+<BODY BGPROPERTIES=FIXED BGCOLOR=FFFFFF TEXT=75A614 LINK=2B5680 ALINK=2B5680 VLINK=2B5680>
+Regelmatig schrijf ik (kleine) scripts die mij het leven wat makkelijker maken. Niet alle zijn geschikt voor publicatie ( :-) ), maar ik hoop hier de komende tijd toch enkele handige scripts te gaan plaatsen.<BR>
+<P>
+<B>SetIp.sh</B><BR>
+Door mijn werk en hobby kom ik met mijn laptop op verschillende plekken waar niet altijd een DHCP server aanwezig is. Door in dit script een functie toe te voegen voor de specifieke netwerk instellingen, hoef ik niet iedere keer dat ik op dezelfde locatie ben, weer alles opnieuw uit te zoeken, cq instellen. Download SetIp.sh <A HREF="made/SetIp.sh">hier</A>. Bedenk wel, dat dit script is geschreven voor FreeBSD, maar met enkele kleine aanpassingen is het makkelijk geschikt te maken voor bijvoorbeeld Linux.
+<P>
+<B>acpid.sh</B><BR>
+Op mijn laptop (Toshiba Satellite Pro 4600) draai ik FreeBSD 5.0 (CURRENT) en kan gelukkig gebruik maken van ACPI. Er is echter (nog) geen userland applicatie voor ACPI gelijk aan apmd. Hiervoor heb ik acpid.sh geschreven. Dit script start ik tijdens het booten vanuit /etc/rc.local met de opdracht /usr/local/sbin/acpid.sh&. Download acpid.sh <A HREF="made/acpid.sh">hier</A>. 
+<P>
+<B>screensaver.pl</B><BR>
+Dit script roep ik aan vanuit de phosphor screensaver die binnen xscreensaver draait. Deze laat de huidige bekende file- en flitsmeldingen zien. Uiteraard kun je dit script ook normaal van de command line draaien. Download screensaver.pl <A HREF="made/screensaver.txt">hier</A>. 
+<P>
+<B>makeworld.sh</B><BR>
+Dit script voert de stappen uit die nodig zijn voor het bouwen van de 'wereld' op een FreeBSD systeem (4.x en 5.x). Download makeworld.sh <A HREF="made/makeworld.sh">hier</A>. 
+<P>
+<B>Logfe</B><BR>
+Logfe (code/work name) is a graphical frontend written in PHP for firewall logs which are send to a SQL database. At this moment it supports ipfilter, but support for more will hopefully become available in a short time. It's not ready for release at this moment, but if you are interested, send me a e-mail and I will look what I can do.
+<P>
+<B>rekenen.pl</B><BR>
+For my six year old son, I wrote a perl script which helps him to learn easy calculations (Math). Download <A HREF="made/rekenen.txt">rekenen.pl</A>. 
+<P>
+<B>ibm_fancontrol_fbsd.pl</B><BR>
+This perl script takes care of the fan and cpufrequency of my IBM/Lenovo Thinkpad T60. Download <A HREF="made/ibm_fancontrol_fbsd.txt">ibm_fancontrol_fbsd.pl</A>. 
+<P>
+<script src="http://www.google-analytics.com/urchin.js" type="text/javascript">
+</script>
+<script type="text/javascript">
+_uacct = "UA-241504-1";
+urchinTracker();
+</script>
+</BODY>
+</HTML>
